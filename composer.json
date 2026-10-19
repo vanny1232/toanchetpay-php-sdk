@@ -3,7 +3,7 @@
     "description": "ToanchetPay Payment Gateway SDK for PHP — supports all payment types: standard, MPGS, KHQR, POS, mobile deeplink.",
     "type": "library",
     "keywords": ["toanchet", "toanchetpay", "payment", "gateway", "khqr", "mpgs", "cambodia"],
-    "homepage": "https://github.com/acleda/toanchetpay-php-sdk",
+    "homepage": "https://github.com/vanny1232/toanchetpay-php-sdk",
     "license": "MIT",
     "require": {
         "php": ">=7.4",
