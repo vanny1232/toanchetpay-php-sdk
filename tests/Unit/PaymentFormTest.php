@@ -86,6 +86,27 @@ class PaymentFormTest extends TestCase
         $this->assertStringContainsString('MY_TOKEN',   $html);
     }
 
+    public function testFormPostsKhqrOperationType(): void
+    {
+        $html = $this->form->generate(
+            $this->makeSession(), $this->txData() + ['operationType' => '3'],
+            'https://site.com/success', 'https://site.com/failed'
+        );
+
+        $this->assertStringContainsString('name="operationType" value="3"', $html);
+    }
+
+    public function testTokenizationFormPostsSessionIdsAndOperationType(): void
+    {
+        $html = $this->form->generateTokenization($this->makeSession(), 'https://site.com/success', 'https://site.com/failed');
+
+        $this->assertStringContainsString('/TESTMERCHANT/paymentPage.jsp', $html);
+        $this->assertStringContainsString('name="operationType" value="2"', $html);
+        $this->assertStringContainsString('name="sessionid" value="S1"', $html);
+        $this->assertStringContainsString('name="paymenttokenid" value="T1"', $html);
+        $this->assertStringNotContainsString('name="amount"', $html);
+    }
+
     public function testFormContainsMerchantId(): void
     {
         $html = $this->form->generate(

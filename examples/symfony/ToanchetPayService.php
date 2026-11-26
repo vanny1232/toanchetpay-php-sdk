@@ -75,7 +75,7 @@ class ToanchetPayService
         string $description,
         string $invoiceId
     ): OpenSessionResponse {
-        $transaction = ToanchetPayTransaction::khqr(
+        $transaction = ToanchetPayTransaction::khqrString(
             txid:             $txid,
             purchaseAmount:   $amount,
             purchaseCurrency: $currency,

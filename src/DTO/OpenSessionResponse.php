@@ -18,7 +18,7 @@ class OpenSessionResponse
     public float  $feeAmount;
     public int    $txDirection;
 
-    /** Present when operationType = 3 (KHQR web) or 5 (KHQR POS). */
+    /** Raw QR content returned for the KHQR String flow (operationType=5). */
     public ?string $qrValue = null;
 
     /** Present when oprDevice + callBackUrl are provided (mobile deeplink). */
@@ -37,8 +37,9 @@ class OpenSessionResponse
 
         $obj = new self();
 
-        $obj->sessionId      = (string) ($result['sessionid']               ?? '');
-        $obj->paymentTokenId = (string) ($xTran['paymentTokenid']           ?? '');
+        $obj->sessionId      = (string) ($result['sessionid'] ?? $result['sessionId'] ?? '');
+        $obj->paymentTokenId = (string) ($xTran['paymentTokenid'] ?? $xTran['paymentTokenId']
+            ?? $result['paymentTokenid'] ?? $result['paymentTokenId'] ?? '');
         $obj->purchaseAmount = (float)  ($xTran['purchaseAmount']           ?? 0.0);
         $obj->purchaseDate   = (int)    ($xTran['purchaseDate']             ?? 0);
         $obj->quantity       = (int)    ($xTran['quantity']                 ?? 0);

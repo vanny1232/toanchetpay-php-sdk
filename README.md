@@ -1,7 +1,6 @@
 # ToanchetPay PHP SDK
 
-A production-ready PHP SDK for integrating with the ToanchetPay payment gateway.  
-Supports all payment types: Standard, MPGS, KHQR, KHQR POS, and Mobile Deeplink.
+A PHP SDK for ACLEDA Toanchet Pay. It supports hosted Account/Wallet and MPGS payments, KHQR webview and raw KHQR strings, mobile deeplinks, tokenization, status checks, callbacks, and refunds. [ACLEDA API integration guide](https://toanchetpay.acledabank.com.kh/toanchetpay/api-integration)
 
 ## Requirements
 
@@ -64,16 +63,14 @@ $transaction = ToanchetPayTransaction::standard(
 
 $session = $client->openSession($transaction);
 
-echo $session->sessionId;       // H0x3/fgAGuXOtKn3cksDfZZQ4YM=
-echo $session->paymentTokenId;  // 2Pkx07aDMnG78wICLa7JMUghqns=
+// Store $session->sessionId and $session->paymentTokenId with the order.
 
 // 3. Redirect user to the payment page
 $form = new PaymentForm($config);
 $form->render($session, $transaction->toArray(), 'https://yoursite.com/success', 'https://yoursite.com/failed');
-// ^ outputs auto-submit HTML and you exit
 
-// 4. On your success page — verify payment
-$status = $client->getTransactionStatus($session->paymentTokenId);
+// 4. In your return handler, load the order and use its saved payment token.
+$status = $client->getTransactionStatus($storedPaymentTokenId);
 
 if ($status->isSuccess() && $status->isConfirmed()) {
     echo "Payment confirmed! Core ref: " . $status->coreRefNum;
@@ -95,7 +92,8 @@ new ToanchetPayConfig(
     string $merchantName,
     string $baseUrl   = 'https://epaymentuat.acledabank.com.kh',
     int    $timeout   = 30,
-    bool   $verifySsl = true
+    bool   $verifySsl = true,
+    ?string $refundBaseUrl = null
 )
 ```
 
@@ -109,6 +107,7 @@ $config = ToanchetPayConfig::fromArray([
     'secret_key'    => env('TOANCHETPAY_SECRET_KEY'),
     'merchant_name' => env('TOANCHETPAY_MERCHANT_NAME'),
     'base_url'      => env('TOANCHETPAY_BASE_URL', 'https://epaymentuat.acledabank.com.kh'),
+    'refund_base_url' => env('TOANCHETPAY_REFUND_BASE_URL'),
 ]);
 ```
 
@@ -154,14 +153,21 @@ $tx = ToanchetPayTransaction::khqr(
     $txid, $amount, 'USD', date('d-m-Y'), 'Description', $invoiceId
 );
 $session = $client->openSession($tx);
-
-if ($session->hasQrValue()) {
-    // Display QR code to user
-    echo $session->qrValue;
-}
+$form = new PaymentForm($config);
+$form->render($session, $tx->toArray(), $successUrl, $errorUrl);
 ```
 
-### 4. KHQR POS / Kiosk Terminal
+### 4. KHQR String and POS
+
+```php
+$tx = ToanchetPayTransaction::khqrString(
+    $txid, $amount, 'USD', date('d-m-Y'), 'Description', $invoiceId
+);
+$session = $client->openSession($tx);
+// Use $session->qrValue to generate a QR image.
+```
+
+Pass terminal and counter IDs when ACLEDA assigns them to your POS or kiosk.
 
 ```php
 $tx = ToanchetPayTransaction::khqrPos(
@@ -236,7 +242,7 @@ echo '<img src="' . $qr->toBase64DataUri($session->qrValue) . '">';
 
 ## Transaction Status
 
-Call after the user returns from the payment page (success/error URL):
+Call after the user returns from the payment page or after your server receives a payment notification. Use the payment token saved with the order.
 
 ```php
 $status = $client->getTransactionStatus($paymentTokenId);
@@ -251,6 +257,57 @@ $status->txid;
 $status->invoiceId;
 $status->paymentTokenId;
 ```
+
+### Payment callbacks
+
+Register your notification URL with ACLEDA. Parse the notification, find the order by its saved payment token, and verify the payment through `getTransactionStatus()`. Match the verified transaction ID and amount with the order before recording payment. [ACLEDA callback documentation](https://toanchetpay.acledabank.com.kh/toanchetpay/callbackurl)
+
+```php
+use ToanchetPay\DTO\PaymentCallback;
+
+$data = json_decode(file_get_contents('php://input'), true, 512, JSON_THROW_ON_ERROR);
+$callback = PaymentCallback::fromArray($data);
+// Look up the order using $callback->paymentTokenId.
+$status = $client->getTransactionStatus($storedPaymentTokenId);
+```
+
+## Tokenization
+
+Use the signature and secret code specified by ACLEDA for your merchant's tokenization integration. [ACLEDA tokenization guide](https://toanchetpay.acledabank.com.kh/toanchetpay/tokenize-integration)
+
+```php
+// Register a payment method on ACLEDA's hosted page.
+$session = $client->openTokenizationSession($signature);
+echo $form->generateTokenization($session, $successUrl, $errorUrl);
+```
+
+The tokenization notification can carry the saved token in `PaymentCallback::$tokenization`.
+
+```php
+// Charge a saved token.
+$payment = $client->payTokenize(
+    $tokenId, $txid, $invoiceId, '5.00', 'USD', 'Order payment', $secretCode
+);
+$paymentTokenId = $payment['paymentTokenId'];
+
+// Delete a saved token using the session from a new MPGS request (paymentCard=1).
+$mpgsSession = $client->openSession($mpgsTransaction);
+$client->deleteTokenization($tokenId, $mpgsSession, $signature);
+```
+
+## Refunds
+
+Use the session ID and payment token ID from the original paid KHQR, deeplink, or MPGS session. The refund currency must match the payment currency. Partial refunds are supported up to the remaining refundable amount. [ACLEDA refund guide](https://toanchetpay.acledabank.com.kh/toanchetpay/refund)
+
+```php
+$originalSession = \ToanchetPay\DTO\OpenSessionResponse::fromApiResponse([
+    'sessionid' => $storedSessionId,
+    'xTran' => ['paymentTokenid' => $storedPaymentTokenId],
+]);
+$result = $client->refundTransaction($originalSession, '0.50', 'USD', 'Cancelled item');
+```
+
+The default UAT refund endpoint uses port `8443`. Set `refundBaseUrl` or `refund_base_url` when ACLEDA gives you a different refund host. `refundTransaction()` signs the payment token using HMAC-SHA512 and throws `ApiException` for bank errors such as code `334845`.
 
 ---
 
@@ -391,9 +448,9 @@ try {
 
 | Exception | Cause |
 |---|---|
-| `ValidationException` | Empty required field, missing terminal for KHQR POS |
+| `ValidationException` | Missing required input or invalid callback fields |
 | `ApiException` | ACLEDA API returned `code != 0` |
-| `HttpException` | cURL error, connection timeout, non-2xx response |
+| `HttpException` | Network failure, non-2xx response, or malformed gateway result |
 
 ---
 
@@ -414,6 +471,7 @@ src/
 ├── DTO/
 │   ├── ToanchetPayTransaction.php     ← Request builder (all payment types)
 │   ├── OpenSessionResponse.php ← Typed response from openSessionV2
+│   ├── PaymentCallback.php    ← Merchant payment notification
 │   └── TransactionStatusResponse.php
 ├── Exceptions/
 │   ├── ToanchetPayException.php
@@ -432,10 +490,11 @@ examples/
 
 tests/
 └── Unit/
-    ├── HashGeneratorTest.php   (6 tests)
-    ├── ToanchetPayTransactionTest.php (10 tests)
-    ├── ToanchetPayClientTest.php      (6 tests)
-    └── PaymentFormTest.php     (8 tests)
+    ├── HashGeneratorTest.php
+    ├── PaymentCallbackTest.php
+    ├── PaymentFormTest.php
+    ├── ToanchetPayClientTest.php
+    └── ToanchetPayTransactionTest.php
 ```
 
 ---
@@ -447,22 +506,12 @@ composer install
 php vendor/bin/phpunit --no-coverage
 ```
 
-Expected output:
-
-```
-PHPUnit 9.x by Sebastian Bergmann and contributors.
-
-..............................   30 / 30 (100%)
-
-OK (30 tests, 56 assertions)
-```
-
 ---
 
 ## Security Notes
 
 - The **secret key** is never sent over the network — only the HMAC hash derived from it.
-- A new hash must be generated for each request (`openSessionV2` uses `txid`; `getTxnStatus` uses `paymentTokenId`).
+- The SDK signs `openSessionV2` requests with the transaction ID. Status and refund requests use the payment token ID.
 - Always set `verifySsl: true` in production.
 - The `PaymentForm` helper escapes all values with `htmlspecialchars` to prevent XSS.
 

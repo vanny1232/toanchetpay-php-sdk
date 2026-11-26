@@ -8,6 +8,9 @@ use ToanchetPay\Exceptions\ValidationException;
 
 class ToanchetPayConfig
 {
+    private const UAT_BASE_URL = 'https://epaymentuat.acledabank.com.kh';
+    private const API_PATH = '/XPAYConnectorServiceInterfaceImplV2/XPAYConnectorServiceInterfaceImplV2RS/';
+
     private string $merchantId;
     private string $loginId;
     private string $password;
@@ -16,6 +19,7 @@ class ToanchetPayConfig
     private string $baseUrl;
     private int $timeout;
     private bool $verifySsl;
+    private string $refundBaseUrl;
 
     public function __construct(
         string $merchantId,
@@ -23,9 +27,10 @@ class ToanchetPayConfig
         string $password,
         string $secretKey,
         string $merchantName,
-        string $baseUrl = 'https://epaymentuat.acledabank.com.kh',
+        string $baseUrl = self::UAT_BASE_URL,
         int $timeout = 30,
-        bool $verifySsl = true
+        bool $verifySsl = true,
+        ?string $refundBaseUrl = null
     ) {
         $this->validate($merchantId, $loginId, $password, $secretKey, $merchantName);
 
@@ -37,6 +42,9 @@ class ToanchetPayConfig
         $this->baseUrl      = rtrim($baseUrl, '/');
         $this->timeout      = $timeout;
         $this->verifySsl    = $verifySsl;
+        $this->refundBaseUrl = rtrim($refundBaseUrl ?? (
+            $this->baseUrl === self::UAT_BASE_URL ? self::UAT_BASE_URL . ':8443' : $this->baseUrl
+        ), '/');
     }
 
     /**
@@ -52,9 +60,10 @@ class ToanchetPayConfig
             $config['password']      ?? '',
             $config['secret_key']    ?? $config['secretKey']    ?? '',
             $config['merchant_name'] ?? $config['merchantName'] ?? '',
-            $config['base_url']      ?? $config['baseUrl']      ?? 'https://epaymentuat.acledabank.com.kh',
+            $config['base_url']      ?? $config['baseUrl']      ?? self::UAT_BASE_URL,
             (int) ($config['timeout']    ?? 30),
-            (bool) ($config['verify_ssl'] ?? $config['verifySsl'] ?? true)
+            (bool) ($config['verify_ssl'] ?? $config['verifySsl'] ?? true),
+            $config['refund_base_url'] ?? $config['refundBaseUrl'] ?? null
         );
     }
 
@@ -77,8 +86,12 @@ class ToanchetPayConfig
     public function getApiUrl(string $endpoint): string
     {
         return $this->getMerchantBaseUrl()
-            . '/XPAYConnectorServiceInterfaceImplV2/XPAYConnectorServiceInterfaceImplV2RS/'
-            . ltrim($endpoint, '/');
+            . self::API_PATH . ltrim($endpoint, '/');
+    }
+
+    public function getRefundApiUrl(): string
+    {
+        return $this->refundBaseUrl . '/' . $this->merchantName . self::API_PATH . 'refundTxn';
     }
 
     /** URL for the hosted payment page redirect */

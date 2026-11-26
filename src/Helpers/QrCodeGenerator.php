@@ -60,10 +60,14 @@ class QrCodeGenerator
 
     private function buildV4V5(string $qrValue): string
     {
+        $errorCorrection = class_exists(\Endroid\QrCode\ErrorCorrectionLevel::class)
+            ? \Endroid\QrCode\ErrorCorrectionLevel::Medium
+            : new \Endroid\QrCode\ErrorCorrectionLevel\ErrorCorrectionLevelMedium();
+
         $result = \Endroid\QrCode\Builder\Builder::create()
             ->data($qrValue)
             ->encoding(new \Endroid\QrCode\Encoding\Encoding('UTF-8'))
-            ->errorCorrectionLevel(new \Endroid\QrCode\ErrorCorrectionLevel\ErrorCorrectionLevelMedium())
+            ->errorCorrectionLevel($errorCorrection)
             ->size($this->size)
             ->margin($this->margin)
             ->build();
@@ -76,7 +80,7 @@ class QrCodeGenerator
         if (trim($qrValue) === '') {
             throw new ToanchetPayException(
                 'QrCodeGenerator: qrValue is empty. Make sure openSessionV2 returned a qrValue '
-                . '(operationType must be 3 or 5).'
+                . 'for a KHQR String session (operationType=5).'
             );
         }
     }

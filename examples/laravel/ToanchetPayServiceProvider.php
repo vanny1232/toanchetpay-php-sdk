@@ -36,7 +36,8 @@ class ToanchetPayServiceProvider extends ServiceProvider
                 merchantName: config('toanchetpay.merchant_name', env('TOANCHETPAY_MERCHANT_NAME')),
                 baseUrl:      config('toanchetpay.base_url',      env('TOANCHETPAY_BASE_URL', 'https://epaymentuat.acledabank.com.kh')),
                 timeout:      (int) config('toanchetpay.timeout', 30),
-                verifySsl:    (bool) config('toanchetpay.verify_ssl', true)
+                verifySsl:    (bool) config('toanchetpay.verify_ssl', true),
+                refundBaseUrl: config('toanchetpay.refund_base_url', env('TOANCHETPAY_REFUND_BASE_URL'))
             );
         });
 

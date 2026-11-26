@@ -34,16 +34,17 @@ class TransactionStatusResponse
      */
     public static function fromApiResponse(array $apiResponse): self
     {
-        $xTran = $apiResponse['xTran'] ?? [];
+        $result = $apiResponse['result'] ?? $apiResponse;
+        $xTran = $result['xTran'] ?? [];
 
         $obj = new self();
 
-        $obj->code            = (int)    ($apiResponse['code']             ?? -1);
-        $obj->errorDetails    = (string) ($apiResponse['errorDetails']     ?? '');
-        $obj->coreRefNum      = (string) ($apiResponse['coreRefNum']       ?? '');
-        $obj->transactionDate = (string) ($apiResponse['transactionDate']  ?? '');
-        $obj->txDirection     = (int)    ($apiResponse['TxDirection']      ?? 0);
-        $obj->maskedCard      = (string) ($apiResponse['maskedCard']       ?? '');
+        $obj->code            = (int)    ($result['code']             ?? -1);
+        $obj->errorDetails    = (string) ($result['errorDetails']     ?? '');
+        $obj->coreRefNum      = (string) ($result['coreRefNum']        ?? '');
+        $obj->transactionDate = (string) ($result['transactionDate']  ?? '');
+        $obj->txDirection     = (int)    ($result['TxDirection']      ?? 0);
+        $obj->maskedCard      = (string) ($result['maskedCard']       ?? '');
 
         $obj->txid           = (string) ($xTran['txid']            ?? '');
         $obj->invoiceId      = (string) ($xTran['invoiceid']        ?? '');

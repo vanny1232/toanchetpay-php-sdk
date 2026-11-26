@@ -37,16 +37,7 @@ class PaymentForm
         string $errorUrl,
         string $formId = '_toanchetpayForm'
     ): string {
-        if (empty($session->sessionId) || empty($session->paymentTokenId)) {
-            throw new ValidationException(
-                'PaymentForm: sessionId and paymentTokenId are required. Call openSession() first.'
-            );
-        }
-
-        $fields = [
-            'merchantID'      => $this->config->getMerchantId(),
-            'sessionid'       => $session->sessionId,
-            'paymenttokenid'  => $session->paymentTokenId,
+        $fields = $this->sessionFields($session, $successUrl, $errorUrl) + [
             'description'     => $txData['purchaseDesc']     ?? $txData['description'] ?? '',
             'expirytime'      => $txData['expiryTime']       ?? '5',
             'amount'          => $txData['purchaseAmount']   ?? $txData['amount'] ?? '',
@@ -56,17 +47,56 @@ class PaymentForm
             'currencytype'    => $txData['purchaseCurrency'] ?? $txData['currency'] ?? 'USD',
             'transactionID'   => $txData['txid']             ?? $txData['transactionId'] ?? '',
             'paymentCard'     => $txData['paymentCard']      ?? '0',
+        ];
+
+        if (isset($txData['operationType'])) {
+            $fields['operationType'] = $txData['operationType'];
+        }
+
+        return $this->generateHtml($fields, $formId);
+    }
+
+    /** Generate the hosted token registration form for an operationType=2 session. */
+    public function generateTokenization(
+        OpenSessionResponse $session,
+        string $successUrl,
+        string $errorUrl,
+        string $formId = '_toanchetpayForm'
+    ): string {
+        $fields = $this->sessionFields($session, $successUrl, $errorUrl) + ['operationType' => '2'];
+
+        return $this->generateHtml($fields, $formId);
+    }
+
+    /** @return array<string,string> */
+    private function sessionFields(OpenSessionResponse $session, string $successUrl, string $errorUrl): array
+    {
+        if (empty($session->sessionId) || empty($session->paymentTokenId)) {
+            throw new ValidationException(
+                'PaymentForm: sessionId and paymentTokenId are required. Call openSession() first.'
+            );
+        }
+
+        return [
+            'merchantID'      => $this->config->getMerchantId(),
+            'sessionid'       => $session->sessionId,
+            'paymenttokenid'  => $session->paymentTokenId,
             'successUrlToReturn' => $successUrl,
             'errorUrl'        => $errorUrl,
         ];
+    }
 
-        $action  = htmlspecialchars($this->config->getPaymentPageUrl(), ENT_QUOTES, 'UTF-8');
-        $formId  = htmlspecialchars($formId, ENT_QUOTES, 'UTF-8');
+    /** @param array<string,mixed> $fields */
+    private function generateHtml(array $fields, string $formId): string
+    {
+        $action = htmlspecialchars($this->config->getPaymentPageUrl(), ENT_QUOTES, 'UTF-8');
+        $htmlFormId = htmlspecialchars($formId, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $scriptFormId = json_encode($formId, JSON_HEX_TAG | JSON_INVALID_UTF8_SUBSTITUTE);
 
         $html  = "<!DOCTYPE html>\n";
         $html .= "<html>\n<head><meta charset=\"UTF-8\"><title>Redirecting to payment...</title></head>\n";
         $html .= "<body>\n";
-        $html .= "<form id=\"{$formId}\" name=\"{$formId}\" action=\"{$action}\" method=\"post\">\n";
+        $html .= "<form id=\"{$htmlFormId}\" name=\"{$htmlFormId}\" action=\"{$action}\" method=\"post\">\n";
 
         foreach ($fields as $name => $value) {
             $safeName  = htmlspecialchars((string) $name,  ENT_QUOTES, 'UTF-8');
@@ -81,7 +111,7 @@ class PaymentForm
         $html .= "        function preventBack(){ window.history.forward(); }\n";
         $html .= "        window.onload = preventBack;\n";
         $html .= "        window.onpageshow = function(e){ if(e.persisted){ preventBack(); } };\n";
-        $html .= "        document.getElementById('{$formId}').submit();\n";
+        $html .= "        document.getElementById({$scriptFormId}).submit();\n";
         $html .= "    })();\n";
         $html .= "</script>\n";
         $html .= "</body>\n</html>\n";

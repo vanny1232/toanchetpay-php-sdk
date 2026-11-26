@@ -86,7 +86,7 @@ try {
 try {
     $txidQr = uniqid('QR', true);
 
-    $transaction = ToanchetPayTransaction::khqr(
+    $transaction = ToanchetPayTransaction::khqrString(
         txid:             $txidQr,
         purchaseAmount:   '5.00',
         purchaseCurrency: 'USD',

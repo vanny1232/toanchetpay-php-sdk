@@ -1,6 +1,6 @@
 {
     "name": "toanchet/toanchetpay-sdk",
-    "description": "ToanchetPay Payment Gateway SDK for PHP — supports all payment types: standard, MPGS, KHQR, POS, mobile deeplink.",
+    "description": "PHP SDK for ACLEDA Toanchet Pay checkout, KHQR, tokenization, status checks, and refunds.",
     "type": "library",
     "keywords": ["toanchet", "toanchetpay", "payment", "gateway", "khqr", "mpgs", "cambodia"],
     "homepage": "https://github.com/vanny1232/toanchetpay-php-sdk",

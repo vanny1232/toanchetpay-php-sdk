@@ -7,16 +7,16 @@ namespace ToanchetPay\DTO;
 use ToanchetPay\Exceptions\ValidationException;
 
 /**
- * Represents the toanchetpayTransaction object sent in openSessionV2.
+ * Represents the xpayTransaction object sent in openSessionV2.
  *
- * Use the static factory methods to get a pre-configured builder for each
- * payment type, then call build() to produce the final array.
+ * Use the static factory methods to configure a payment, then call toArray()
+ * to produce the request data.
  *
  * Payment type guide:
- *   standard()  → ACLEDA hosted page (card/ABA/Wing/etc.)
+ *   standard()  → ACLEDA Account/Wallet hosted page
  *   mpgs()      → Mastercard Payment Gateway (paymentCard=1)
  *   khqr()      → KHQR via hosted page (operationType=3)
- *   khqrPos()   → KHQR POS / kiosk terminal (operationType=5)
+ *   khqrString() → Raw KHQR string, optionally with terminal data (operationType=5)
  *   deeplink()  → Mobile app deeplink (oprDevice + callBackUrl)
  */
 class ToanchetPayTransaction
@@ -127,16 +127,16 @@ class ToanchetPayTransaction
         return $tx;
     }
 
-    /** KHQR for POS / kiosk — adds operationType=5 + terminal info. */
-    public static function khqrPos(
+    /** Raw KHQR string session with optional terminal and counter IDs. */
+    public static function khqrString(
         string $txid,
         string $purchaseAmount,
         string $purchaseCurrency,
         string $purchaseDate,
         string $purchaseDesc,
         string $invoiceid,
-        string $terminalId,
-        string $counterId,
+        ?string $terminalId = null,
+        ?string $counterId = null,
         string $item       = '1',
         string $quantity   = '1',
         string $expiryTime = '5'
@@ -150,6 +150,26 @@ class ToanchetPayTransaction
         $tx->terminalId    = $terminalId;
         $tx->counterId     = $counterId;
         return $tx;
+    }
+
+    /** KHQR for POS or kiosk with terminal and counter IDs. */
+    public static function khqrPos(
+        string $txid,
+        string $purchaseAmount,
+        string $purchaseCurrency,
+        string $purchaseDate,
+        string $purchaseDesc,
+        string $invoiceid,
+        string $terminalId,
+        string $counterId,
+        string $item = '1',
+        string $quantity = '1',
+        string $expiryTime = '5'
+    ): self {
+        return self::khqrString(
+            $txid, $purchaseAmount, $purchaseCurrency, $purchaseDate,
+            $purchaseDesc, $invoiceid, $terminalId, $counterId, $item, $quantity, $expiryTime
+        );
     }
 
     /** Mobile deeplink — adds oprDevice + callBackUrl. */
@@ -262,12 +282,6 @@ class ToanchetPayTransaction
             if (trim($value) === '') {
                 throw new ValidationException("ToanchetPayTransaction: '{$field}' must not be empty.");
             }
-        }
-
-        if ($this->operationType === '5' && ($this->terminalId === null || $this->counterId === null)) {
-            throw new ValidationException(
-                'ToanchetPayTransaction: operationType=5 (KHQR POS) requires terminalId and counterId.'
-            );
         }
     }
 }

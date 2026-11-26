@@ -141,8 +141,7 @@ $transaction = ToanchetPayTransaction::standard(
 
 $session = $client->openSession($transaction);
 
-echo $session->sessionId;       // H0x3/fgAGuXOtKn3cksDfZZQ4YM=
-echo $session->paymentTokenId;  // 2Pkx07aDMnG78wICLa7JMUghqns=
+// Store $session->sessionId and $session->paymentTokenId with the order.
 ```
 
 ### Step 3 — Redirect the user to the payment page
@@ -155,21 +154,19 @@ $form->render(
     'https://yoursite.com/payment/success',  // success URL
     'https://yoursite.com/payment/failed'    // failure URL
 );
-// render() outputs an auto-submit HTML form and exits
+// render() outputs an auto-submit HTML form.
 ```
 
 ### Step 4 — Verify the payment on your callback page
 
 ```php
-// On your success/failure page:
-$paymentTokenId = $_POST['paymentTokenId'] ?? '';
-
-$status = $client->getTransactionStatus($paymentTokenId);
+// In your return handler, load the order and its saved payment token.
+$status = $client->getTransactionStatus($storedPaymentTokenId);
 
 if ($status->isSuccess() && $status->isConfirmed()) {
     echo "Payment confirmed!";
     echo "Core reference: " . $status->coreRefNum;
-    echo "Amount: " . $status->purchaseAmount . " " . $status->purchaseCurrency;
+    echo "Amount: " . $status->purchaseAmount;
 } else {
     echo "Payment not confirmed.";
 }
@@ -183,11 +180,12 @@ if ($status->isSuccess() && $status->isConfirmed()) {
 |------|---------------|-------|
 | Standard (ACLEDA hosted) | `ToanchetPayTransaction::standard(...)` | Redirects user to ACLEDA payment page |
 | MPGS (Mastercard) | `ToanchetPayTransaction::mpgs(...)` | Card payment via Mastercard gateway |
-| KHQR (web) | `ToanchetPayTransaction::khqr(...)` | Returns `qrValue` to display as QR |
-| KHQR POS / Kiosk | `ToanchetPayTransaction::khqrPos(..., $terminalId, $counterId)` | For terminal/kiosk displays |
+| KHQR webview | `ToanchetPayTransaction::khqr(...)` | Displays the QR code on ACLEDA's hosted page |
+| KHQR String | `ToanchetPayTransaction::khqrString(...)` | Returns `qrValue` for local QR image generation |
+| KHQR POS / Kiosk | `ToanchetPayTransaction::khqrPos(..., $terminalId, $counterId)` | Returns `qrValue` and includes terminal data in the request |
 | Mobile Deeplink | `ToanchetPayTransaction::deeplink(..., $oprDevice, $callBackUrl)` | Opens ACLEDA mobile app |
 
-All types share the same `openSession()` call — only the factory method differs.
+Use `openSession()` for the payment types above. See the README for [tokenization](README.md#tokenization), [callbacks](README.md#payment-callbacks), and [refunds](README.md#refunds).
 
 ---
 
@@ -247,12 +245,6 @@ Run the included test suite to confirm everything is working:
 ```bash
 composer install
 php vendor/bin/phpunit --no-coverage
-```
-
-Expected output:
-
-```
-OK (30 tests, 56 assertions)
 ```
 
 ---

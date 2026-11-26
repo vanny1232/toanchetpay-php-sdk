@@ -83,13 +83,14 @@ class ToanchetPayTransactionTest extends TestCase
         ToanchetPayTransaction::standard('', '1', 'USD', '01-01-2024', 'Test', 'INV')->toArray();
     }
 
-    public function testKhqrPosMissingTerminalThrowsValidationException(): void
+    public function testKhqrStringAllowsOmittedTerminalAndCounter(): void
     {
-        $this->expectException(ValidationException::class);
+        $tx = ToanchetPayTransaction::khqrString('TX', '1', 'USD', '01-01-2024', 'Test', 'INV');
+        $data = $tx->toArray();
 
-        $tx = ToanchetPayTransaction::standard('TX', '1', 'USD', '01-01-2024', 'Test', 'INV');
-        $tx->withOperationType('5'); // operationType=5 without terminal
-        $tx->toArray();
+        $this->assertSame('5', $data['operationType']);
+        $this->assertArrayNotHasKey('terminalId', $data);
+        $this->assertArrayNotHasKey('counterId', $data);
     }
 
     public function testGetTxidReturnsCorrectValue(): void

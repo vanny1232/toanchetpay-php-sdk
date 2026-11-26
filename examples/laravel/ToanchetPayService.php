@@ -67,7 +67,7 @@ class ToanchetPayService
         string $currency   = 'USD',
         string $expiryTime = '5'
     ): OpenSessionResponse {
-        $transaction = ToanchetPayTransaction::khqr(
+        $transaction = ToanchetPayTransaction::khqrString(
             txid:             $txid,
             purchaseAmount:   number_format($amount, 2, '.', ''),
             purchaseCurrency: $currency,
